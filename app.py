@@ -35,6 +35,22 @@ SEASON_ID = 3
 RAW_DIR = Path("data/raw/comp_43_season_3")
 TEAM_FEATURES_CSV = Path("data/team_features.csv")
 
+
+# ── ensure data is present (downloads on first run / cloud deploy) ────────────
+def _ensure_data():
+    if not RAW_DIR.exists() or not any(RAW_DIR.glob("events_*.csv")):
+        with st.spinner("Downloading StatsBomb World Cup data (one-time, ~30s)..."):
+            from football_ai.io.statsbomb_loader import download_match_events_to_csv
+            download_match_events_to_csv(COMP_ID, SEASON_ID, output_dir=RAW_DIR)
+
+    if not TEAM_FEATURES_CSV.exists():
+        with st.spinner("Building team features dataset..."):
+            from football_ai.pipeline.build_dataset import build_team_features_csv
+            build_team_features_csv(COMP_ID, SEASON_ID, events_dir=RAW_DIR,
+                                    output_csv=TEAM_FEATURES_CSV)
+
+_ensure_data()
+
 # ── page config ──────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="Football Analytics AI",
