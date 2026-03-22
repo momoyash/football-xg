@@ -99,6 +99,16 @@ Predicts the probability that any given shot results in a goal.
 
 This model captures the core signal — shot location, distance, body part, and technique — which accounts for roughly 80% of xG variance. The remaining gap vs commercial models comes from richer contextual features (assist type, pressure, goalkeeper positioning) and orders of magnitude more training data. This model is equivalent in scope to first-generation xG models used by clubs around 2012–2014, before tracking data became widespread.
 
+#### xG per team — This model vs StatsBomb vs Actual Goals
+
+![xG Comparison](reports/figures/xg_model_vs_statsbomb.png)
+
+Key observations:
+- **This model total xG: 153.2** — closest to actual goals scored (157)
+- **StatsBomb total xG: 172.8** — overshoots because it factors in assist type, keeper position, and pressure data that push individual shot xG higher
+- This model consistently rates shots slightly lower than StatsBomb since it uses fewer contextual features
+- Both models agree on the ranking — Belgium, Brazil, and England created the most chances; Panama, Costa Rica, and Iran the fewest
+
 ### Match Outcome Model — Random Forest
 
 Predicts match result (win/draw/loss) from 5 team-level features: possession %, passes/min, pressures/min, average shot distance, total xG.
