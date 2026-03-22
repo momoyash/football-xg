@@ -846,3 +846,81 @@ elif page == "Match Outcome":
     st.markdown('<hr class="divider">', unsafe_allow_html=True)
     section("Full Classification Report")
     st.code(metrics["classification_report"], language=None)
+
+    # ── What-if Simulator ─────────────────────────────────────────────────────
+    st.markdown('<hr class="divider">', unsafe_allow_html=True)
+    section("What-If Simulator")
+    insight("Drag the sliders to set a team's in-match stats and see the model's predicted outcome — <strong>live</strong>.")
+
+    team_df_sim = load_team_features()
+
+    sim_col, res_col = st.columns([2, 1])
+
+    with sim_col:
+        possession  = st.slider("Possession %",        10.0, 90.0, 50.0, 0.5)
+        passes_min  = st.slider("Passes per minute",    1.0, 12.0,  5.0, 0.1)
+        press_min   = st.slider("Pressures per minute", 0.5,  6.0,  2.0, 0.1)
+        shot_dist   = st.slider("Avg shot distance (m)", 8.0, 35.0, 18.0, 0.5)
+        total_xg    = st.slider("Total xG",             0.0,  5.0,  1.5, 0.05)
+
+    sim_input = pd.DataFrame([{
+        "possession_pct":    possession,
+        "passes_per_min":    passes_min,
+        "pressures_per_min": press_min,
+        "avg_shot_distance": shot_dist,
+        "total_xg":          total_xg,
+    }])
+
+    proba     = model.predict_proba(sim_input)[0]
+    classes   = model.classes_
+    proba_map = dict(zip(classes, proba))
+    pred      = classes[np.argmax(proba)]
+
+    outcome_color = {"win": GREEN, "draw": YELLOW, "loss": RED}
+    pred_color    = outcome_color.get(pred, TEXT)
+
+    with res_col:
+        st.markdown(f"""
+        <div class="kpi-card" style="text-align:center; margin-top:1rem;">
+            <div class="kpi-label">Predicted outcome</div>
+            <div class="kpi-value" style="font-size:2.5rem; color:{pred_color};">
+                {pred.upper()}
+            </div>
+            <div class="kpi-sub" style="margin-top:0.5rem;">
+                {"🟢" if pred=="win" else "🟡" if pred=="draw" else "🔴"}
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    # Probability bar chart
+    ordered = ["win", "draw", "loss"]
+    probs   = [proba_map.get(c, 0) for c in ordered]
+    colors_sim = [GREEN, YELLOW, RED]
+
+    fig_sim = go.Figure(go.Bar(
+        x=ordered, y=probs,
+        marker=dict(color=colors_sim, line=dict(width=0)),
+        text=[f"{p:.1%}" for p in probs],
+        textposition="outside",
+        textfont=dict(color=TEXT, size=13),
+    ))
+    fig_sim.update_layout(
+        **PLOTLY_LAYOUT, height=280,
+        yaxis_range=[0, 1.15],
+        yaxis_title="Probability", xaxis_title="",
+        showlegend=False,
+    )
+    st.plotly_chart(fig_sim, use_container_width=True)
+
+    # Context: compare to real team averages
+    section("How does this compare to real teams?")
+    agg_sim = team_df_sim.groupby("team").agg(
+        possession_pct    =("possession_pct",    "mean"),
+        passes_per_min    =("passes_per_min",    "mean"),
+        pressures_per_min =("pressures_per_min", "mean"),
+        avg_shot_distance =("avg_shot_distance", "mean"),
+        total_xg          =("total_xg",          "mean"),
+    )
+    diffs = (agg_sim - sim_input.iloc[0]).abs().sum(axis=1)
+    closest = diffs.nsmallest(3).index.tolist()
+    insight(f"Your slider profile is closest to: <strong>{', '.join(closest)}</strong>")
