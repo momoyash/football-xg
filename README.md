@@ -1,94 +1,136 @@
-# ⚽ Football xG
+# ⚽ Football xG — 2018 World Cup Analytics
 
 [![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://football-xg-wgtdbkvmckwguz23munoxg.streamlit.app/)
+![Python](https://img.shields.io/badge/Python-3.10-3776AB?logo=python&logoColor=white)
+![scikit-learn](https://img.shields.io/badge/scikit--learn-1.4-F7931E?logo=scikit-learn&logoColor=white)
+![Streamlit](https://img.shields.io/badge/Streamlit-1.40-FF4B4B?logo=streamlit&logoColor=white)
+![StatsBomb](https://img.shields.io/badge/Data-StatsBomb_Open_Data-2C3E50)
 
-A machine learning pipeline for football analytics built on **StatsBomb open data**.
-It models the 2018 FIFA World Cup — all 64 matches, 32 teams, ~200,000 events — and answers two core questions:
+A full-stack football analytics project — from raw event data to interactive ML-powered dashboard — built on **StatsBomb's free 2018 FIFA World Cup dataset**.
 
-> **1. How likely was each shot to be a goal? (xG)**
-> **2. Can we predict match outcomes from team stats?**
+> **64 matches · 32 teams · ~200,000 events · 2 ML models · 8 dashboard pages**
 
 ---
 
-## What is this project?
+## Live Dashboard
 
-Modern football analysis goes beyond goals and assists. This project replicates the kind of tooling used by club analytics departments:
+Click the badge above or visit the live app directly. No install needed.
 
-| Question | Model | Output |
+The dashboard covers every match of the 2018 World Cup with interactive charts, ML predictions, SHAP explainability, and tactical formation timelines.
+
+---
+
+## What this project does
+
+Modern football clubs use data to answer questions that traditional stats can't. This project replicates that workflow end-to-end:
+
+| Question | Approach | Output |
 |---|---|---|
-| How dangerous was that shot? | **xG model** (Gradient Boosting) | Probability 0–1 per shot |
-| Who should win this match? | **Outcome model** (Random Forest) | win / draw / loss |
-
-Everything is built on **StatsBomb's free open data** — no paid subscription needed.
+| How dangerous was that shot? | **xG model** (Gradient Boosting + SHAP) | Probability 0–1 per shot |
+| Who should win this match? | **Outcome model** (Random Forest) | Win / Draw / Loss |
+| How did a team set up tactically? | **Formation viewer** (StatsBomb lineup data) | Live formation timeline |
+| Which player was most threatening? | **Player analysis page** | Shot map, xG, conversion rate |
 
 ---
 
-## Dashboard (Streamlit)
+## Dashboard Pages
 
-The easiest way to explore the project is the interactive dashboard:
-
-```bash
-pip install -e .
-streamlit run app.py
-```
-
-This opens a browser with 5 pages:
-
-| Page | What you see |
+| Page | What you get |
 |---|---|
-| **Overview** | Tournament summary, xG leaderboard, result distribution |
-| **Shot Map** | Pick any match → see every shot on a pitch, sized by xG |
-| **xG Model** | Calibration curve, feature importances, xG distribution |
-| **Team Stats** | Compare any teams across possession, passing, pressing, xG |
-| **Match Outcome Model** | Model accuracy, per-class precision/recall/F1 |
+| **Overview** | Tournament xG leaderboard, result distribution, key stats |
+| **Shot Map** | Every shot on a pitch for any match — sized by xG, xG timeline per minute |
+| **xG Model** | Calibration curve, feature importances, xG distribution, SHAP explainability |
+| **Team Stats** | Compare teams on possession, passing tempo, pressing, xG — radar chart |
+| **Match Outcome** | Model performance + **What-if simulator** (drag sliders → live prediction) |
+| **Players** | Top scorers leaderboard, per-player shot map, xG vs actual goals |
+| **Match Comparison** | Side-by-side stats, xG timeline, and shot maps for any two matches |
+| **Formation** | Starting XI on pitch → slide through substitution timeline → Both Teams view |
 
 ---
 
-## Example outputs
+## Screenshots
 
-### Shot Map — 2018 World Cup Final (France vs Croatia)
+### xG Leaderboard — Full Tournament
+![xG Leaderboard](reports/figures/xg_per_team.png)
+*Belgium, France, and Croatia generated the most expected goals. Dot size on the shot map scales with xG.*
+
+### World Cup Final — Shot Map (France vs Croatia)
 ![Shot Map](reports/figures/shot_map_final.png)
-*Filled circles = goals. Marker size ∝ xG. France's large circle near the penalty spot = Griezmann's penalty.*
+*Filled circles = goals. Hollow circles = saved/blocked/missed. Marker size ∝ xG. Green = France, Blue = Croatia.*
 
-### Total xG per Team — Full Tournament
-![xG per Team](reports/figures/xg_per_team.png)
-*Croatia and England generated the most chances. Costa Rica and Panama the fewest.*
+### xG Model — Calibration & Feature Importance
+![xG Model](reports/figures/xg_model_overview.png)
+*Left: calibration curve showing predicted xG vs actual goal rate. Right: shot distance and penalty type dominate.*
 
-### xG Model Calibration
-![Calibration](reports/figures/xg_calibration.png)
-*How well the model's probabilities match real goal rates. Closer to the dashed line = better.*
-
-### Feature Importance
-![Feature Importance](reports/figures/xg_feature_importance.png)
-*Shot distance is the strongest predictor. Penalties are near-certain goals (~0.76 xG).*
+### Team DNA — Radar Chart
+![Radar Chart](reports/figures/team_radar.png)
+*Normalised 0–1 per axis. France's balanced profile vs Belgium's high pressing. England's shot distance stands out.*
 
 ---
 
-## Quick start
+## Core Models
+
+### xG Model — Gradient Boosting Classifier
+
+Predicts the probability that any given shot results in a goal.
+
+**Features:** shot distance, x/y coordinates, body part (head/foot), technique (normal/volley/etc.), shot type (open play/free kick/penalty), minute
+
+| Metric | Value |
+|---|---|
+| ROC-AUC | **0.755** |
+| Brier Score | **0.074** |
+| Log Loss | ~0.23 |
+| Top feature | Shot distance |
+
+**SHAP explainability** — every prediction can be broken down into per-feature contributions, showing exactly *why* the model gave a shot a particular xG value.
+
+### Match Outcome Model — Random Forest
+
+Predicts match result (win/draw/loss) from 5 team-level features: possession %, passes/min, pressures/min, average shot distance, total xG.
+
+| Metric | Value |
+|---|---|
+| Accuracy | **~50%** |
+| Best class | Loss (F1: 0.67) |
+| Hardest class | Draw (F1: 0.22 — inherently unpredictable) |
+
+**What-if Simulator** — drag 5 sliders to simulate any team profile and get a live win/draw/loss prediction with probability bars and "closest real team" comparison.
+
+---
+
+## Formation Viewer
+
+Uses StatsBomb's official lineup and tactical data to show:
+- **Starting XI** positions mapped to pitch coordinates
+- **Live timeline** — drag through each substitution to see the formation update
+- **Tactical Shift detection** — when a manager changes shape mid-match, the formation name updates automatically (e.g. 4-3-3 → 4-4-2)
+- **Both Teams view** — all 22 players on one pitch, different colours, flipped so they face each other
+
+---
+
+## Quick Start
 
 ```bash
-# 1. Install
+# 1. Clone and install
+git clone https://github.com/momoyash/football-xg.git
+cd football-xg
 pip install -e .
 
-# 2. Run the full pipeline (uses cached data — no download needed)
-python -m football_ai.pipeline.run_experiment
-
-# 3. Launch dashboard
+# 2. Launch the dashboard (downloads data automatically on first run)
 streamlit run app.py
-```
 
-To download fresh data first:
-```bash
-python -m football_ai.pipeline.run_experiment --download
+# 3. Or run the full ML pipeline
+python -m football_ai.pipeline.run_experiment
 ```
 
 ---
 
-## Project structure
+## Project Structure
 
 ```
 football-analytics-ai/
-├── app.py                          ← Streamlit dashboard
+├── app.py                          ← Streamlit dashboard (8 pages)
 ├── src/football_ai/
 │   ├── io/
 │   │   ├── statsbomb_loader.py     ← Download StatsBomb events → CSV
@@ -99,7 +141,7 @@ football-analytics-ai/
 │   ├── modeling/
 │   │   ├── models.py               ← Model registry (xg_gbm, outcome_rf, outcome_lr)
 │   │   ├── datasets.py             ← Dataset loaders and X/y splitters
-│   │   ├── xg_model.py             ← Train xG model end-to-end
+│   │   ├── xg_model.py             ← Train xG pipeline end-to-end
 │   │   └── train.py                ← Train match outcome model
 │   ├── evaluation/
 │   │   ├── metrics.py              ← ROC-AUC, Brier, ECE, classification report
@@ -112,71 +154,51 @@ football-analytics-ai/
 │   ├── raw/                        ← StatsBomb event CSVs (gitignored)
 │   └── team_features.csv           ← 128 rows × 64 matches (committed)
 ├── models/artifacts/               ← Trained models (gitignored, regenerable)
-├── reports/figures/                ← Saved plots
-├── notebooks/                      ← Jupyter exploration notebooks
-├── tests/
+├── reports/figures/                ← Chart exports
+├── config/                         ← config.yaml, logging.yaml
 └── pyproject.toml
 ```
 
 ---
 
-## The data
+## Tech Stack
+
+| Layer | Library |
+|---|---|
+| Data | `statsbombpy`, `pandas`, `numpy` |
+| ML | `scikit-learn` (GBM, Random Forest, pipelines) |
+| Explainability | `shap` (TreeExplainer) |
+| Pitch visualisation | `mplsoccer`, `matplotlib` |
+| Interactive charts | `plotly` |
+| Dashboard | `streamlit` |
+| Deployment | Streamlit Cloud |
+
+---
+
+## Data
 
 **StatsBomb 2018 FIFA World Cup open data:**
 - 64 matches · 32 teams · group stage through final
-- ~3,000 events per match (passes, shots, pressures, carries, duels, etc.)
+- ~3,000 events per match (passes, shots, pressures, carries, duels, goalkeeper actions, etc.)
 - Each shot includes: location (x, y), body part, technique, outcome, StatsBomb xG
+- Lineup data: starting XI, positions, substitutions, tactical formations
 
-Teams: Argentina, Belgium, Brazil, Croatia, England, France, Germany, Portugal, Spain, Uruguay + all 32 World Cup nations.
-
----
-
-## Model results
-
-### xG Model (Gradient Boosting)
-| Metric | Value |
-|---|---|
-| ROC-AUC | **0.755** |
-| Brier Score | **0.074** |
-| Top feature | Shot distance |
-
-### Match Outcome Model (Random Forest)
-| Metric | Value |
-|---|---|
-| Accuracy | **50%** |
-| Best class | Loss (F1: 0.67) |
-| Hardest class | Draw (F1: 0.22) |
-
-Outcome model accuracy is limited by dataset size (128 rows). Adding more competitions/seasons would significantly improve it.
+StatsBomb Open Data is free for personal and educational use under [StatsBomb's terms](https://github.com/statsbomb/open-data).
 
 ---
 
-## CLI commands
+## CLI Reference
 
 ```bash
-# Summarise a single match
-python -m football_ai.evaluation.match_summary data/raw/comp_43_season_3/events_7525.csv
+# Full pipeline: download → features → train xG → train outcome
+python -m football_ai.pipeline.run_experiment
 
 # Train just the xG model
 python -m football_ai.modeling.xg_model
 
-# Train just the outcome model
-python -m football_ai.modeling.train data/team_features.csv
-
 # Build team features from scratch
 python -m football_ai.pipeline.build_dataset
+
+# Summarise a single match
+python -m football_ai.evaluation.match_summary data/raw/comp_43_season_3/events_7585.csv
 ```
-
----
-
-## Dependencies
-
-Core: `pandas` · `numpy` · `scikit-learn` · `statsbombpy` · `mplsoccer` · `streamlit` · `matplotlib` · `joblib`
-
-See `requirements.txt` for full list.
-
----
-
-## Data licence
-
-StatsBomb Open Data is free for personal and educational use under [StatsBomb's terms](https://github.com/statsbomb/open-data).
