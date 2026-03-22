@@ -661,23 +661,49 @@ elif page == "Team Stats":
         st.plotly_chart(fig, use_container_width=True)
 
         st.markdown('<hr class="divider">', unsafe_allow_html=True)
-        section("Multi-Metric Comparison")
-        metrics_to_plot = ["avg_possession","avg_passes_min","avg_press_min","total_xg"]
-        labels = ["Possession %","Passes/min","Pressures/min","Total xG"]
-        plot_data = agg.loc[agg.index.isin(selected_teams), metrics_to_plot]
+        section("Team DNA — Radar Chart")
+        insight("Each axis is normalised 0–1 across all teams. Bigger area = stronger overall performance.")
 
-        fig2 = go.Figure()
+        radar_metrics = ["avg_possession", "avg_passes_min", "avg_press_min", "total_xg", "avg_shot_dist"]
+        radar_labels  = ["Possession", "Passing Tempo", "Pressing", "Total xG", "Shot Distance"]
+
+        # Normalise each metric 0–1 across all teams
+        radar_data = agg[radar_metrics].copy()
+        radar_norm = (radar_data - radar_data.min()) / (radar_data.max() - radar_data.min() + 1e-9)
+
         palette = [GREEN, BLUE, YELLOW, RED, "#A855F7", "#F97316"]
-        for i, team in enumerate(plot_data.index):
-            row = plot_data.loc[team]
-            fig2.add_trace(go.Bar(
-                name=team, x=labels, y=row.values,
-                marker=dict(color=palette[i % len(palette)], line=dict(width=0)),
+        fig_radar = go.Figure()
+
+        for i, team in enumerate(selected_teams):
+            if team not in radar_norm.index:
+                continue
+            vals = radar_norm.loc[team, radar_metrics].tolist()
+            vals += vals[:1]  # close the polygon
+            cats = radar_labels + radar_labels[:1]
+            color = palette[i % len(palette)]
+            fig_radar.add_trace(go.Scatterpolar(
+                r=vals, theta=cats, name=team,
+                fill="toself",
+                fillcolor=f"rgba({int(color[1:3],16)},{int(color[3:5],16)},{int(color[5:7],16)},0.10)"
+                          if color.startswith("#") and len(color) == 7 else "rgba(0,245,122,0.10)",
+                line=dict(color=color, width=2),
             ))
-        fig2.update_layout(**PLOTLY_LAYOUT, height=380, barmode="group",
-                           xaxis_title="", yaxis_title="Value",
-                           legend=dict(bgcolor=CARD, bordercolor=BORDER))
-        st.plotly_chart(fig2, use_container_width=True)
+
+        fig_radar.update_layout(
+            paper_bgcolor=SURFACE,
+            plot_bgcolor=SURFACE,
+            font=dict(family="Inter, sans-serif", color=TEXT),
+            polar=dict(
+                bgcolor=CARD,
+                radialaxis=dict(visible=True, range=[0, 1], gridcolor=BORDER,
+                                tickfont=dict(color=MUTED, size=9), showticklabels=False),
+                angularaxis=dict(gridcolor=BORDER, tickfont=dict(color=TEXT, size=11)),
+            ),
+            legend=dict(bgcolor=CARD, bordercolor=BORDER),
+            margin=dict(l=60, r=60, t=40, b=40),
+            height=480,
+        )
+        st.plotly_chart(fig_radar, use_container_width=True)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
