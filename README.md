@@ -1,115 +1,180 @@
-# Football Analytics AI
+# ⚽ Football Analytics AI
 
-A Python project for football analytics and machine learning on **StatsBomb** event data: data ingestion, exploration, team- and shot-level features, expected goals (xG) modeling, match-outcome prediction, and tactical-state classification (with labels).
+A machine learning pipeline for football analytics built on **StatsBomb open data**.
+It models the 2018 FIFA World Cup — all 64 matches, 32 teams, ~200,000 events — and answers two core questions:
+
+> **1. How likely was each shot to be a goal? (xG)**
+> **2. Can we predict match outcomes from team stats?**
+
+---
+
+## What is this project?
+
+Modern football analysis goes beyond goals and assists. This project replicates the kind of tooling used by club analytics departments:
+
+| Question | Model | Output |
+|---|---|---|
+| How dangerous was that shot? | **xG model** (Gradient Boosting) | Probability 0–1 per shot |
+| Who should win this match? | **Outcome model** (Random Forest) | win / draw / loss |
+
+Everything is built on **StatsBomb's free open data** — no paid subscription needed.
+
+---
+
+## Dashboard (Streamlit)
+
+The easiest way to explore the project is the interactive dashboard:
+
+```bash
+pip install -e .
+streamlit run app.py
+```
+
+This opens a browser with 5 pages:
+
+| Page | What you see |
+|---|---|
+| **Overview** | Tournament summary, xG leaderboard, result distribution |
+| **Shot Map** | Pick any match → see every shot on a pitch, sized by xG |
+| **xG Model** | Calibration curve, feature importances, xG distribution |
+| **Team Stats** | Compare any teams across possession, passing, pressing, xG |
+| **Match Outcome Model** | Model accuracy, per-class precision/recall/F1 |
+
+---
+
+## Example outputs
+
+### Shot Map — 2018 World Cup Final (France vs Croatia)
+![Shot Map](reports/figures/shot_map_final.png)
+*Filled circles = goals. Marker size ∝ xG. France's large circle near the penalty spot = Griezmann's penalty.*
+
+### Total xG per Team — Full Tournament
+![xG per Team](reports/figures/xg_per_team.png)
+*Croatia and England generated the most chances. Costa Rica and Panama the fewest.*
+
+### xG Model Calibration
+![Calibration](reports/figures/xg_calibration.png)
+*How well the model's probabilities match real goal rates. Closer to the dashed line = better.*
+
+### Feature Importance
+![Feature Importance](reports/figures/xg_feature_importance.png)
+*Shot distance is the strongest predictor. Penalties are near-certain goals (~0.76 xG).*
 
 ---
 
 ## Quick start
 
 ```bash
-cd football-analytics-ai
-python -m venv .venv
-.venv\Scripts\activate          # Windows
-pip install -r requirements.txt
+# 1. Install
+pip install -e .
+
+# 2. Run the full pipeline (uses cached data — no download needed)
+python -m football_ai.pipeline.run_experiment
+
+# 3. Launch dashboard
+streamlit run app.py
 ```
 
-**Run from the project root** (`football-analytics-ai`) so paths like `data/raw/...` resolve correctly.
+To download fresh data first:
+```bash
+python -m football_ai.pipeline.run_experiment --download
+```
 
 ---
 
-## Project layout
+## Project structure
 
-| Path | Purpose |
-|------|---------|
-| `data/raw/` | Downloaded StatsBomb event CSVs (e.g. per match) |
-| `data/interim/` | Intermediate cleaned or labeled data |
-| `data/processed/` | Feature tables ready for modeling |
-| `models/artifacts/` | Saved models (`.joblib`) |
-| `notebooks/` | Jupyter workflows (exploration, features, experiments) |
-| `src/football_ai/` | Importable package (`io`, `preprocessing`, `modeling`, `evaluation`) |
-| `docs/` | Project history, roadmap, and detailed guides |
+```
+football-analytics-ai/
+├── app.py                          ← Streamlit dashboard
+├── src/football_ai/
+│   ├── io/
+│   │   ├── statsbomb_loader.py     ← Download StatsBomb events → CSV
+│   │   └── data_writer.py          ← Save models, predictions, reports
+│   ├── preprocessing/
+│   │   ├── cleaning.py             ← Clean & parse raw events
+│   │   └── feature_engineering.py  ← Team features, shot dataset builder
+│   ├── modeling/
+│   │   ├── models.py               ← Model registry (xg_gbm, outcome_rf, outcome_lr)
+│   │   ├── datasets.py             ← Dataset loaders and X/y splitters
+│   │   ├── xg_model.py             ← Train xG model end-to-end
+│   │   └── train.py                ← Train match outcome model
+│   ├── evaluation/
+│   │   ├── metrics.py              ← ROC-AUC, Brier, ECE, classification report
+│   │   ├── visualization.py        ← Shot map, calibration, feature importance
+│   │   └── match_summary.py        ← Per-match stats summary
+│   └── pipeline/
+│       ├── build_dataset.py        ← Build team_features.csv from all CSVs
+│       └── run_experiment.py       ← Full pipeline entry point
+├── data/
+│   ├── raw/                        ← StatsBomb event CSVs (gitignored)
+│   └── team_features.csv           ← 128 rows × 64 matches (committed)
+├── models/artifacts/               ← Trained models (gitignored, regenerable)
+├── reports/figures/                ← Saved plots
+├── notebooks/                      ← Jupyter exploration notebooks
+├── tests/
+└── pyproject.toml
+```
 
 ---
 
-## What’s implemented
+## The data
 
-| Area | Description |
-|------|-------------|
-| **Data download** | `statsbombpy` → CSV per match (`io/statsbomb_loader.py`) |
-| **Exploration** | `notebooks/01_exploration_statsbomb.ipynb` |
-| **Aggregate stats** | `notebooks/02_feature_prototyping.ipynb` — load many event CSVs, match-level counts |
-| **Match summary CLI** | `evaluation/match_summary.py` — passes, shots, pressures, xG, possession from one CSV |
-| **Team features** | `preprocessing/feature_engineering.py` — possession %, rates per minute, shot distance, total xG |
-| **Shot dataset** | `build_shot_dataset()` — rows for xG-style modeling |
-| **xG model** | `modeling/xg_model.py` — train classifier on shots → goal; outputs probability as xG |
-| **Match outcome** | `modeling/train.py` — sklearn pipeline on a **team-features CSV** + `result` column |
-| **Tactical state** | `modeling/tactical_state.py` — sequence windows → classifier (**requires** `tactical_state` labels on events) |
+**StatsBomb 2018 FIFA World Cup open data:**
+- 64 matches · 32 teams · group stage through final
+- ~3,000 events per match (passes, shots, pressures, carries, duels, etc.)
+- Each shot includes: location (x, y), body part, technique, outcome, StatsBomb xG
 
-Full task log and future plans: **[docs/PROJECT_HISTORY_AND_ROADMAP.md](docs/PROJECT_HISTORY_AND_ROADMAP.md)**.
+Teams: Argentina, Belgium, Brazil, Croatia, England, France, Germany, Portugal, Spain, Uruguay + all 32 World Cup nations.
 
 ---
 
-## Common commands
+## Model results
 
-**Download events (Open Data)**
+### xG Model (Gradient Boosting)
+| Metric | Value |
+|---|---|
+| ROC-AUC | **0.755** |
+| Brier Score | **0.074** |
+| Top feature | Shot distance |
+
+### Match Outcome Model (Random Forest)
+| Metric | Value |
+|---|---|
+| Accuracy | **50%** |
+| Best class | Loss (F1: 0.67) |
+| Hardest class | Draw (F1: 0.22) |
+
+Outcome model accuracy is limited by dataset size (128 rows). Adding more competitions/seasons would significantly improve it.
+
+---
+
+## CLI commands
 
 ```bash
-python -m src.football_ai.io.statsbomb_loader <competition_id> <season_id>
+# Summarise a single match
+python -m football_ai.evaluation.match_summary data/raw/comp_43_season_3/events_7525.csv
+
+# Train just the xG model
+python -m football_ai.modeling.xg_model
+
+# Train just the outcome model
+python -m football_ai.modeling.train data/team_features.csv
+
+# Build team features from scratch
+python -m football_ai.pipeline.build_dataset
 ```
-
-**Summarize one match CSV**
-
-```bash
-python -m src.football_ai.evaluation.match_summary data/raw/comp_43_season_3/events_7525.csv
-```
-
-**Train xG model (PowerShell — use backtick for line continuation)**
-
-```powershell
-python -m src.football_ai.modeling.xg_model `
-  --events-glob "data/raw/comp_43_season_3/events_*.csv" `
-  --model-out models/artifacts/xg_model.joblib
-```
-
-**Train match-outcome model** (needs `data/team_features.csv` or your path with columns `result` + numeric features)
-
-```powershell
-python -m src.football_ai.modeling.train path/to/team_features.csv --target-column result
-```
-
-**Train tactical-state model** (event CSVs must include a `tactical_state` column)
-
-```powershell
-python -m src.football_ai.modeling.tactical_state `
-  --events-glob "data/raw/**/*.csv" `
-  --state-col tactical_state
-```
-
----
-
-## Using the package in notebooks
-
-If `ModuleNotFoundError: football_ai` appears, either:
-
-1. Install in editable mode (recommended once `pyproject.toml` is configured), or  
-2. Add `src` to the path:
-
-```python
-import sys
-from pathlib import Path
-sys.path.append(str(Path(r"E:\path\to\football-analytics-ai") / "src"))
-```
-
-**Windows paths in strings:** use `r"E:\..."`, double backslashes, or forward slashes — otherwise `\f`, `\t`, etc. break the path.
 
 ---
 
 ## Dependencies
 
-See `requirements.txt` — includes **pandas**, **numpy**, **scikit-learn**, **statsbombpy**, **mplsoccer**, **streamlit**, **PyTorch**, and notebook/plotting helpers.
+Core: `pandas` · `numpy` · `scikit-learn` · `statsbombpy` · `mplsoccer` · `streamlit` · `matplotlib` · `joblib`
+
+See `requirements.txt` for full list.
 
 ---
 
-## License & data
+## Data licence
 
-StatsBomb Open Data is subject to [StatsBomb’s terms](https://github.com/statsbomb/open-data). This repo is a personal/analytics scaffold; add your own license if you distribute code.
+StatsBomb Open Data is free for personal and educational use under [StatsBomb's terms](https://github.com/statsbomb/open-data).

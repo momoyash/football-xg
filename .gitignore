@@ -28,8 +28,9 @@ data/external/
 # Model artifacts (binary, regenerable)
 models/artifacts/
 
-# Reports (generated output)
-reports/
+# Reports — keep figures, ignore text outputs
+reports/*.txt
+reports/*.json
 
 # Environment
 .env
