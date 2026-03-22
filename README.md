@@ -2,8 +2,6 @@
 
 [![Open in Streamlit](https://static.streamlit.io/badges/streamlit_badge_black_white.svg)](https://football-xg-wgtdbkvmckwguz23munoxg.streamlit.app/)
 
-**Live demo → [football-xg-wgtdbkvmckwguz23munoxg.streamlit.app](https://football-xg-wgtdbkvmckwguz23munoxg.streamlit.app/)**
-
 A machine learning pipeline for football analytics built on **StatsBomb open data**.
 It models the 2018 FIFA World Cup — all 64 matches, 32 teams, ~200,000 events — and answers two core questions:
 
