@@ -153,7 +153,7 @@ python -m football_ai.pipeline.run_experiment
 ## Project Structure
 
 ```
-football-analytics-ai/
+football-xg/
 ├── app.py                          ← Streamlit dashboard (8 pages)
 ├── src/football_ai/
 │   ├── io/
